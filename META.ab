@@ -1,0 +1,8 @@
+version = "$(pkg_version)"
+description = "A ppx rewriter for easy construction of s-expressions"
+requires = "ppx_core ppx_driver ppx_here.expander ppx_sexp_conv.expander"
+archive(ppx_driver, byte          ) = "ppx_sexp_message.cma"
+archive(ppx_driver, native        ) = "ppx_sexp_message.cmxa"
+archive(ppx_driver, native, plugin) = "ppx_sexp_message.cmxs"
+exists_if = "ppx_sexp_message.cma"
+ppx(-ppx_driver) = "./ppx"
