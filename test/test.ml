@@ -63,5 +63,11 @@ let%expect_test _ =
 
   (* This is a bit weird but consistent. *)
   pr [%message "foo" ~a:""];
-  [%expect {| (foo a) |}];
+  [%expect {| foo |}];
+
+  pr [%message];
+  [%expect {| () |}];
+
+  pr [%message "" (Some 1 : int sexp_option) (None : int sexp_option)];
+  [%expect {| ("Some 1" 1) |}];
 ;;

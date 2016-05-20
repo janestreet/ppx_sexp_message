@@ -90,6 +90,14 @@ For instance:
 - `(Map.keys m : string list)` becomes `("Map.keys m" (".bashrc" ".emacs"))`
 - `(sprintf "expected %s of type" ast_type)` becomes `"expected a pattern of type"`
 
+#### Optionally displayed expression
+
+When an expression is annotated with a type, if the type has the
+syntax `a sexp_option` for some `a`, then:
+
+- when the value is `None`, the tag and expression are omitted
+- when the value is  `Some x`, then the tag and `x` are displayed
+
 #### Special case of the empty string
 
 An exception to the previous rules is the treatment of the empty
@@ -109,6 +117,11 @@ For instance:
 ```ocaml
 `[%message "" (sprintf "invalid %s" name)]
 ```
+
+#### Misc
+
+For convenience and continuity of the syntax `[%message]` becomes
+`()`.
 
 Difference with ppx\_sexp\_value
 --------------------------------
