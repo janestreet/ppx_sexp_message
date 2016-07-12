@@ -42,13 +42,10 @@ let sexp_of_constant ~loc const =
     eapply ~loc (evar ~loc ("Sexplib.Conv.sexp_of_" ^ typ)) [pexp_constant ~loc const]
   in
   match const with
-  | Const_int       _ -> f "int"
-  | Const_char      _ -> f "char"
-  | Const_string    _ -> f "string"
-  | Const_float     _ -> f "float"
-  | Const_int32     _ -> f "int32"
-  | Const_int64     _ -> f "int64"
-  | Const_nativeint _ -> f "nativeint"
+  | Pconst_integer   _ -> f "int"
+  | Pconst_char      _ -> f "char"
+  | Pconst_string    _ -> f "string"
+  | Pconst_float     _ -> f "float"
 ;;
 
 let rewrite_here e =
@@ -62,25 +59,13 @@ let sexp_of_expr e =
   let e = rewrite_here e in
   let loc = e.pexp_loc in
   match e.pexp_desc with
-  | Pexp_constant (Const_string ("", _)) ->
+  | Pexp_constant (Pconst_string ("", _)) ->
     Absent
   | Pexp_constant const ->
     Present (sexp_of_constant ~loc const)
   | Pexp_constraint (expr, ctyp) ->
     sexp_of_constraint ~loc expr ctyp
   | _ -> Present [%expr Sexplib.Conv.sexp_of_string [%e e]]
-;;
-
-type arg_label =
-  | Nolabel
-  | Labelled of string
-  | Optional
-
-(* Will help with the switch to 4.03 *)
-let arg_label_of_string = function
-  | "" -> Nolabel
-  | s when s.[0] = '?' -> Optional
-  | s -> Labelled s
 ;;
 
 let sexp_of_labelled_expr (label, e) =
@@ -99,7 +84,7 @@ let sexp_of_labelled_expr (label, e) =
       sexp_inline ~loc [sexp_atom ~loc (estring ~loc label); e]
     in
     wrap_sexp_if_present (sexp_of_expr e) ~f:k
-  | Optional, _ ->
+  | Optional _, _ ->
     (* Could be used to encode sexp_option if that's ever needed. *)
     Location.raise_errorf ~loc
       "ppx_sexp_value: optional argument not allowed here"
@@ -147,7 +132,7 @@ let expand ~loc ~path:_ = function
     let labelled_exprs =
       match e.pexp_desc with
       | Pexp_apply (f, args) ->
-        (Nolabel, f) :: List.map args ~f:(fun (label, e) -> arg_label_of_string label, e)
+        (Nolabel, f) :: args
       | _ ->
         (Nolabel, e) :: []
     in
