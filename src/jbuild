@@ -1,0 +1,7 @@
+(library
+ ((name ppx_sexp_message)
+  (public_name ppx_sexp_message)
+  (public_release ((kind ppx_rewriter)))
+  (wrapped false)
+  (libraries (ocamlcommon ppx_core ppx_driver ppx_sexp_conv_expander ppx_here_expander))
+  (preprocess ((metaquot All)))))
