@@ -1,10 +1,5 @@
-open StdLabels
-open Ppx_core.Std
-open Asttypes
-open Parsetree
+open Ppx_core
 open Ast_builder.Default
-
-[@@@metaloc loc];;
 
 let sexp_atom ~loc x = [%expr Sexplib.Sexp.Atom [%e x]]
 let sexp_list ~loc x = [%expr Sexplib.Sexp.List [%e x]]

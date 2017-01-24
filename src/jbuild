@@ -3,9 +3,9 @@
   (public_name ppx_sexp_message)
   (kind ppx_rewriter)
   (ppx_runtime_libraries (sexplib))
-  (libraries (compiler-libs.common
+  (libraries (
               ppx_core
               ppx_driver
               ppx_sexp_conv.expander
               ppx_here.expander))
-  (preprocess metaquot)))
+  (preprocess (pps (ppx_metaquot)))))
