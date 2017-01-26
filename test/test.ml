@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 let pr sexp =
   let ppf = Format.std_formatter in

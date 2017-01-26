@@ -10,7 +10,7 @@ messages, where one needs to construct a s-expression based on various
 element of the context such as function arguments.  For instance:
 
 ```ocaml
-open Core.Std
+open Core
 
 let rename ~src ~dst =
   try Unix.rename ~src:tmpfile ~dst
