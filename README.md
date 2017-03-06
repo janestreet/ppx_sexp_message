@@ -1,5 +1,7 @@
-Easy construction of s-expressions
-==================================
+---
+title: ppx_sexp_message - Easy construction of s-expressions
+parent: ../README.md
+---
 
 Overview
 --------
