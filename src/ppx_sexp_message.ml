@@ -1,6 +1,12 @@
 open Ppx_core
 open Ast_builder.Default
 
+let omit_nil =
+  Attribute.declare "sexp_message.sexp.omit_nil"
+    Attribute.Context.core_type
+    Ast_pattern.(pstr nil)
+    ()
+
 let sexp_atom ~loc x = [%expr Sexplib.Sexp.Atom [%e x]]
 let sexp_list ~loc x = [%expr Sexplib.Sexp.List [%e x]]
 
@@ -14,12 +20,14 @@ let sexp_inline ~loc l =
 type omittable_sexp =
   | Present of expression
   | Optional of Location.t * expression * (expression -> expression)
+  | Omit_nil of Location.t * expression * (expression -> expression)
   | Absent
 
 let wrap_sexp_if_present omittable_sexp ~f =
   match omittable_sexp with
-  | Optional (loc, e, k) -> Optional (loc, e, (fun e -> f (k e)))
   | Present e -> Present (f e)
+  | Optional (loc, e, k) -> Optional (loc, e, (fun e -> f (k e)))
+  | Omit_nil (loc, e, k) -> Omit_nil (loc, e, (fun e -> f (k e)))
   | Absent -> Absent
 
 let sexp_of_constraint ~loc expr ctyp =
@@ -28,8 +36,13 @@ let sexp_of_constraint ~loc expr ctyp =
     let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty in
     Optional (loc, expr, fun expr -> eapply ~loc sexp_of [expr])
   | _ ->
-    let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ctyp in
-    Present (eapply ~loc sexp_of [expr])
+    let expr =
+      let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ctyp in
+      eapply ~loc sexp_of [expr]
+    in
+    match Attribute.get omit_nil ctyp with
+    | Some () -> Omit_nil (loc, expr, Fn.id)
+    | None -> Present expr
 ;;
 
 let sexp_of_constant ~loc const =
@@ -99,10 +112,17 @@ let sexp_of_labelled_exprs ~loc labels_and_exprs =
           match [%e v_opt], [%e acc] with
           | None, tl -> tl
           | Some v, tl -> [%e k [%expr v]] :: tl
+        ]
+      | Omit_nil (_, e, k) ->
+        [%expr
+          match [%e e], [%e acc] with
+          | Sexplib.Sexp.List [], tl -> tl
+          | v, tl -> [%e k [%expr v]] :: tl
         ])
   in
   let has_optional_values =
-    List.exists l ~f:(function (Optional _ : omittable_sexp) -> true | _ -> false)
+    List.exists l ~f:(function ((Optional _ | Omit_nil _) : omittable_sexp) -> true
+                             | Present _ | Absent -> false)
   in
   (* The two branches do the same thing, but when there are no optional values, we can do
      it at compile-time, which avoids making the generated code ugly. *)
