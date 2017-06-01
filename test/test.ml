@@ -73,4 +73,10 @@ let%expect_test _ =
 
   pr [%message ([1] : int list [@omit_nil]) ([] : int list [@omit_nil])];
   [%expect {| ([1] (1)) |}];
+
+  pr [%message.omit_nil (Some 1 : int option) (None : int option)];
+  [%expect {| ("Some 1" 1) |}];
+
+  pr [%message.omit_nil ([1] : int list) ([] : int list)];
+  [%expect {| ([1] (1)) |}];
 ;;

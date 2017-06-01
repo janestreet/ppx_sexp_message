@@ -102,6 +102,11 @@ If the type annotation has the attribute `[@sexp.omit_nil]`, then when
 the expression is converted into an sexp, if that sexp is `()`, then
 both the tag and the expression are omitted.
 
+One can also use `[%message.omit_nil exprs]`, which is a variation of
+`[%message exprs]` which behaves as if all `option` types were
+`sexp_option` and all other expressions were annotated with
+`[@sexp.omit_nil]`.
+
 #### Special case of the empty string
 
 An exception to the previous rules is the treatment of the empty
