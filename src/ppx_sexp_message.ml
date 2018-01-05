@@ -7,8 +7,8 @@ let omit_nil_attr =
     Ast_pattern.(pstr nil)
     ()
 
-let sexp_atom ~loc x = [%expr Sexplib.Sexp.Atom [%e x]]
-let sexp_list ~loc x = [%expr Sexplib.Sexp.List [%e x]]
+let sexp_atom ~loc x = [%expr Ppx_sexp_conv_lib.Sexp.Atom [%e x]]
+let sexp_list ~loc x = [%expr Ppx_sexp_conv_lib.Sexp.List [%e x]]
 
 let sexp_inline ~loc l =
   match l with
@@ -61,7 +61,7 @@ let sexp_of_constraint ~omit_nil ~loc expr ctyp =
 
 let sexp_of_constant ~loc const =
   let f typ =
-    eapply ~loc (evar ~loc ("Sexplib.Conv.sexp_of_" ^ typ)) [pexp_constant ~loc const]
+    eapply ~loc (evar ~loc ("Ppx_sexp_conv_lib.Conv.sexp_of_" ^ typ)) [pexp_constant ~loc const]
   in
   match const with
   | Pconst_integer   _ -> f "int"
@@ -87,7 +87,7 @@ let sexp_of_expr ~omit_nil e =
     present_or_omit_nil ~loc ~omit_nil:false (sexp_of_constant ~loc const)
   | Pexp_constraint (expr, ctyp) ->
     sexp_of_constraint ~omit_nil ~loc expr ctyp
-  | _ -> present_or_omit_nil ~loc ~omit_nil:false [%expr Sexplib.Conv.sexp_of_string [%e e]]
+  | _ -> present_or_omit_nil ~loc ~omit_nil:false [%expr Ppx_sexp_conv_lib.Conv.sexp_of_string [%e e]]
 ;;
 
 let sexp_of_labelled_expr ~omit_nil (label, e) =
@@ -130,7 +130,7 @@ let sexp_of_labelled_exprs ~omit_nil ~loc labels_and_exprs =
       | Omit_nil (_, e, k) ->
         [%expr
           match [%e e], [%e acc] with
-          | Sexplib.Sexp.List [], tl -> tl
+          | Ppx_sexp_conv_lib.Sexp.List [], tl -> tl
           | v, tl -> [%e k [%expr v]] :: tl
         ])
   in
