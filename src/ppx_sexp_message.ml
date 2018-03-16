@@ -1,4 +1,5 @@
-open Ppx_core
+open Base
+open Ppxlib
 open Ast_builder.Default
 
 let omit_nil_attr =
@@ -176,7 +177,7 @@ let message ~name ~omit_nil =
 ;;
 
 let () =
-  Ppx_driver.register_transformation "sexp_message"
+  Driver.register_transformation "sexp_message"
     ~extensions:[
       message ~name:"message" ~omit_nil:false;
       message ~name:"@message.omit_nil" ~omit_nil:true;
