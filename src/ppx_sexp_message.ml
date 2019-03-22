@@ -8,6 +8,12 @@ let omit_nil_attr =
     Ast_pattern.(pstr nil)
     ()
 
+let option_attr =
+  Attribute.declare "sexp_message.sexp.option"
+    Attribute.Context.core_type
+    Ast_pattern.(pstr nil)
+    ()
+
 let sexp_atom ~loc x = [%expr Ppx_sexp_conv_lib.Sexp.Atom [%e x]]
 let sexp_list ~loc x = [%expr Ppx_sexp_conv_lib.Sexp.List [%e x]]
 
@@ -44,6 +50,9 @@ let sexp_of_constraint ~omit_nil ~loc expr ctyp =
   in
   match ctyp with
   | [%type: [%t? ty] sexp_option] -> optional ty
+  | [%type: [%t? ty] option]
+    when Option.is_some (Attribute.get option_attr ctyp) ->
+    optional ty
   | [%type: [%t? ty] option] when omit_nil -> optional ty
   | _ ->
     let expr =

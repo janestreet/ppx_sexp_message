@@ -93,7 +93,7 @@ For instance:
 #### Optionally displayed expression
 
 When an expression is annotated with a type, if the type has the
-syntax `a sexp_option` for some `a`, then:
+syntax `a option [@sexp.option]` for some `a`, then:
 
 - when the value is `None`, the tag and expression are omitted
 - when the value is  `Some x`, then the tag and `x` are displayed
@@ -103,8 +103,8 @@ the expression is converted into an sexp, if that sexp is `()`, then
 both the tag and the expression are omitted.
 
 One can also use `[%message.omit_nil exprs]`, which is a variation of
-`[%message exprs]` which behaves as if all `option` types were
-`sexp_option` and all other expressions were annotated with
+`[%message exprs]` which behaves as if all `option` types were annotated
+with `[@sexp.option]` and all other expressions were annotated with
 `[@sexp.omit_nil]`.
 
 #### Special case of the empty string
