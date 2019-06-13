@@ -37,9 +37,13 @@ Syntax
 ------
 
 Ppx\_sexp\_message expands the `[%message ...]` extension point into
-an expression that evaluates to an s-expression. The grammar of the
-payload is a small DSL that specifies what the generated s-expression
-looks like.
+an expression that evaluates to an s-expression, i.e. an expression of
+type `Sexplib.Sexp.t`. The grammar of the payload is a small DSL that
+specifies what the generated s-expression looks like.
+
+The user can then format and display such an s-expression as usual, using
+[sexplib](https://github.com/janestreet/sexplib), or as
+[explained here](https://dev.realworldocaml.org/data-serialization.html#basic-usage).
 
 ### Basic syntax
 
@@ -81,13 +85,13 @@ When an expression is annotated with a type, the type is used to
 convert the value exactly like `ppx_sexp_conv` does.
 
 Otherwise, expressions are assumed to be valid ocaml expressions of
-type string and the resulting string ends up directly in the
+type string and the resulting string ends up as an atom in the
 s-expression.
 
 For instance:
 
 - `"foo"` becomes `foo`
-- `(Map.keys m : string list)` becomes `("Map.keys m" (".bashrc" ".emacs"))`
+- `(Map.keys m : string list)` becomes `("Map.keys m" (.bashrc .emacs))`
 - `(sprintf "expected %s of type" ast_type)` becomes `"expected a pattern of type"`
 
 #### Optionally displayed expression
