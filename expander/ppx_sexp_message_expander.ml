@@ -95,7 +95,7 @@ let rewrite_here e =
 
 let sexp_of_expr ~omit_nil e =
   let e = rewrite_here e in
-  let loc = e.pexp_loc in
+  let loc = { e.pexp_loc with loc_ghost = true } in
   match e.pexp_desc with
   | Pexp_constant (Pconst_string ("", _)) -> Absent
   | Pexp_constant const ->
@@ -109,7 +109,7 @@ let sexp_of_expr ~omit_nil e =
 ;;
 
 let sexp_of_labelled_expr ~omit_nil (label, e) =
-  let loc = e.pexp_loc in
+  let loc = { e.pexp_loc with loc_ghost = true } in
   match label, e.pexp_desc with
   | Nolabel, Pexp_constraint (expr, _) ->
     let expr_str = Pprintast.string_of_expression expr in
@@ -126,6 +126,7 @@ let sexp_of_labelled_expr ~omit_nil (label, e) =
 ;;
 
 let sexp_of_labelled_exprs ~omit_nil ~loc labels_and_exprs =
+  let loc = { loc with loc_ghost = true } in
   let l = List.map labels_and_exprs ~f:(sexp_of_labelled_expr ~omit_nil) in
   let res =
     List.fold_left (List.rev l) ~init:(elist ~loc []) ~f:(fun acc e ->
@@ -175,6 +176,8 @@ let expand ~omit_nil ~path:_ e =
 ;;
 
 let expand_opt ~omit_nil ~loc ~path = function
-  | None -> sexp_list ~loc (elist ~loc [])
+  | None ->
+    let loc = { loc with loc_ghost = true } in
+    sexp_list ~loc (elist ~loc [])
   | Some e -> expand ~omit_nil ~path e
 ;;
