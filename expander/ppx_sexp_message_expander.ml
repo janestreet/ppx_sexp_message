@@ -97,7 +97,7 @@ let sexp_of_expr ~omit_nil e =
   let e = rewrite_here e in
   let loc = { e.pexp_loc with loc_ghost = true } in
   match e.pexp_desc with
-  | Pexp_constant (Pconst_string ("", _)) -> Absent
+  | Pexp_constant (Pconst_string ("", _, _)) -> Absent
   | Pexp_constant const ->
     present_or_omit_nil ~loc ~omit_nil:false (sexp_of_constant ~loc const)
   | Pexp_constraint (expr, ctyp) -> sexp_of_constraint ~omit_nil ~loc expr ctyp
