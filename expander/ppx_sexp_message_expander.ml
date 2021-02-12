@@ -63,11 +63,11 @@ let sexp_of_constraint ~omit_nil ~loc expr ctyp =
     in
     let omit_nil_attr =
       lazy
-        ((* this is lazy so using [@omit_nil] inside [%message.omit_nil] is an error (unused
-            attribute) *)
-          match Attribute.get omit_nil_attr ctyp with
-          | Some () -> true
-          | None -> false)
+        (* this is lazy so using [@omit_nil] inside [%message.omit_nil] is an error (unused
+           attribute) *)
+        (match Attribute.get omit_nil_attr ctyp with
+         | Some () -> true
+         | None -> false)
     in
     present_or_omit_nil ~loc expr ~omit_nil:(omit_nil || Lazy.force omit_nil_attr)
 ;;
