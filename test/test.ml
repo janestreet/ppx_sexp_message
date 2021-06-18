@@ -52,6 +52,9 @@ let%expect_test _ =
   pr [%message [%here]];
   [%expect {| */test.ml:*:* (glob) |}];
 
+  pr [%message [%string "foo"]];
+  [%expect {| foo |}];
+
   pr [%message (x : int)];
   [%expect {| (x 42) |}];
 
