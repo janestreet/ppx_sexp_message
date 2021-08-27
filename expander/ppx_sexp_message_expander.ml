@@ -52,7 +52,6 @@ let sexp_of_constraint ~omit_nil ~loc expr ctyp =
     Optional (loc, expr, fun expr -> eapply ~loc sexp_of [ expr ])
   in
   match ctyp with
-  | [%type: [%t? ty] sexp_option] -> optional ty
   | [%type: [%t? ty] option] when Option.is_some (Attribute.get option_attr ctyp) ->
     optional ty
   | [%type: [%t? ty] option] when omit_nil -> optional ty

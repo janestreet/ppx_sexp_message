@@ -71,9 +71,6 @@ let%expect_test _ =
   pr [%message];
   [%expect {| () |}];
 
-  pr [%message (Some 1 : int sexp_option) (None : int sexp_option)];
-  [%expect {| ("Some 1" 1) |}];
-
   pr [%message (Some 1 : int option [@sexp.option]) (None : int option [@sexp.option])];
   [%expect {| ("Some 1" 1) |}];
 
