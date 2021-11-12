@@ -1,2 +1,5 @@
-(library (name test_ppx_sexp_message_lib) (libraries core_kernel.core)
- (preprocess (pps ppx_sexp_conv ppx_sexp_message ppx_expect ppx_string)))
+(library (name test_ppx_sexp_message_lib)
+ (libraries core_kernel.core
+  expect_test_helpers_core.expect_test_helpers_base)
+ (preprocess
+  (pps ppx_here ppx_sexp_conv ppx_sexp_message ppx_expect ppx_string)))
