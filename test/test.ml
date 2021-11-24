@@ -1,15 +1,7 @@
 open Core
 
-let pr sexp =
-  let ppf = Format.std_formatter in
-  Format.pp_set_margin ppf Int.max_value;
-  (* Because of [%here] which can be long... *)
-  Sexp.pp_hum ppf sexp;
-  Format.pp_print_flush ppf ();
-  print_endline
-    (Expect_test_helpers_base.hide_positions_in_string
-       (Expect_test_helpers_base.expect_test_output [%here]))
-;;
+let () = Expect_test_helpers_base.sexp_style := To_string_hum
+let pr sexp = Expect_test_helpers_base.print_s ~hide_positions:true sexp
 
 let%expect_test _ =
   let x = 42
