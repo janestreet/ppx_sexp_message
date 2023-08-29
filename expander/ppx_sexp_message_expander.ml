@@ -124,6 +124,19 @@ let sexp_of_labelled_expr ~omit_nil (label, e) =
     Location.raise_errorf ~loc "ppx_sexp_value: optional argument not allowed here"
 ;;
 
+(* Wrap up the generated code in a [@cold] function so it doesn't pollute the call site.
+
+   Also, give that cold function a nice name so it's easy for assembly readers to figure
+   out why that function is being called. *)
+let wrap_in_cold_function ~loc expr =
+  [%expr
+    let[@cold] ppx_sexp_message () = [%e expr] in
+    (* Prevent tail calls so the closure environment is always allocated locally (with
+       Jane Street extensions). The sexp this is generating is still allocated globally,
+       but it's nice to keep the closure allocation cheap where it's easy. *)
+    ppx_sexp_message () [@nontail]]
+;;
+
 let sexp_of_labelled_exprs ~omit_nil ~loc labels_and_exprs =
   let loc = { loc with loc_ghost = true } in
   let l = List.map labels_and_exprs ~f:(sexp_of_labelled_expr ~omit_nil) in
@@ -152,16 +165,19 @@ let sexp_of_labelled_exprs ~omit_nil ~loc labels_and_exprs =
   in
   (* The two branches do the same thing, but when there are no optional values, we can do
      it at compile-time, which avoids making the generated code ugly. *)
-  if has_optional_values
-  then
-    [%expr
-      match [%e res] with
-      | [ h ] -> h
-      | ([] | _ :: _ :: _) as res -> [%e sexp_list ~loc [%expr res]]]
-  else (
-    match res with
-    | [%expr [ [%e? h] ]] -> h
-    | _ -> sexp_list ~loc res)
+  let final_expr =
+    if has_optional_values
+    then
+      [%expr
+        match [%e res] with
+        | [ h ] -> h
+        | ([] | _ :: _ :: _) as res -> [%e sexp_list ~loc [%expr res]]]
+    else (
+      match res with
+      | [%expr [ [%e? h] ]] -> h
+      | _ -> sexp_list ~loc res)
+  in
+  wrap_in_cold_function ~loc final_expr
 ;;
 
 let expand ~omit_nil ~path:_ e =
@@ -177,6 +193,6 @@ let expand ~omit_nil ~path:_ e =
 let expand_opt ~omit_nil ~loc ~path = function
   | None ->
     let loc = { loc with loc_ghost = true } in
-    sexp_list ~loc (elist ~loc [])
+    wrap_in_cold_function ~loc (sexp_list ~loc (elist ~loc []))
   | Some e -> expand ~omit_nil ~path e
 ;;
