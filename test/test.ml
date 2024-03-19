@@ -21,7 +21,7 @@ let%expect_test "[%message]" =
   pr [%message "foo" ~_:[%here]];
   [%expect {| (foo ppx/ppx_sexp_message/test/test.ml:LINE:COL) |}];
   pr [%message [%here] "blah"];
-  [%expect " (ppx/ppx_sexp_message/test/test.ml:LINE:COL blah) "];
+  [%expect "(ppx/ppx_sexp_message/test/test.ml:LINE:COL blah)"];
   pr [%message (sprintf "foo %d" x) (y : string)];
   [%expect {| ("foo 42" (y forty-two)) |}];
   pr [%message "hello"];
@@ -77,7 +77,7 @@ let%expect_test "[%lazy_message]" =
   pr_lazy [%lazy_message "foo" ~_:[%here]];
   [%expect {| (foo ppx/ppx_sexp_message/test/test.ml:LINE:COL) |}];
   pr_lazy [%lazy_message [%here] "blah"];
-  [%expect " (ppx/ppx_sexp_message/test/test.ml:LINE:COL blah) "];
+  [%expect "(ppx/ppx_sexp_message/test/test.ml:LINE:COL blah)"];
   pr_lazy [%lazy_message (sprintf "foo %d" x) (y : string)];
   [%expect {| ("foo 42" (y forty-two)) |}];
   pr_lazy [%lazy_message "hello"];
