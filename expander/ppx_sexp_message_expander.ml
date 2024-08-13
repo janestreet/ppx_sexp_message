@@ -46,10 +46,99 @@ let wrap_sexp_if_present omittable_sexp ~f =
   | Absent -> Absent
 ;;
 
-let sexp_of_constraint ~omit_nil ~loc expr ctyp =
+(* [rename] returns a fresh name for an expression.
+
+   You can later retrieve all names (in order) by calling [names], and the corresponding
+   named expressions (in the same order) by calling [original_expressions].
+
+   This module is used to construct a function that doesn't close over as many free
+   variables. The strategy is: call [rename] on every expression you want to avoid closing
+   over, and use the returned name within the body of the function. Later, use [names] to
+   determine the parameters to the function, and [original_expressions] to determine the
+   arguments to pass at the call site.
+
+   See [wrap_in_cold_function] for why we only rename idents, not all expressions.
+*)
+module Renaming_env : sig
+  type t
+
+  val create : unit -> t
+  val rename : t -> expression -> name_prefix:string option -> expression
+  val names : t -> pattern list
+  val original_expressions : t -> expression list
+end = struct
+  module Entry = struct
+    type t =
+      { name : string
+      ; name_loc : Location.t
+      ; original_expression : expression
+      }
+
+    let name_as_pattern t = pvar t.name ~loc:t.name_loc
+    let original_expression t = t.original_expression
+  end
+
+  type t = Entry.t Queue.t
+
+  let create () = Queue.create ()
+
+  let rename t original_expression ~name_prefix =
+    let name_loc = { original_expression.pexp_loc with loc_ghost = true } in
+    let name = gen_symbol ?prefix:name_prefix () in
+    let entry : Entry.t = { original_expression; name; name_loc } in
+    Queue.enqueue t entry;
+    evar ~loc:name_loc entry.name
+  ;;
+
+  let names t = Queue.to_list t |> List.map ~f:Entry.name_as_pattern
+  let original_expressions t = Queue.to_list t |> List.map ~f:Entry.original_expression
+end
+
+let rename_if_ident_or_field_access env expression =
+  let longident_to_human_friendly_string longident =
+    (* Make a best-effort attempt to generate a name that roughly
+       corresponds to the original name, to aid human readers of
+       the ppx-generated code.
+    *)
+    match longident with
+    | Lident ident -> Some ident
+    | Ldot (_path, after_dot) -> Some after_dot
+    | Lapply _ -> None
+  in
+  match expression.pexp_desc with
+  | Pexp_ident ident ->
+    let name_prefix = longident_to_human_friendly_string ident.txt in
+    Renaming_env.rename env expression ~name_prefix
+  | Pexp_field (record, field) ->
+    let rec flatten_nested_field_accesses expression field_names =
+      match expression.pexp_desc with
+      | Pexp_field (record, field) ->
+        flatten_nested_field_accesses record (field :: field_names)
+      | Pexp_ident ident -> Some (ident :: field_names)
+      | _ -> None
+    in
+    (match flatten_nested_field_accesses record [ field ] with
+     | None -> expression
+     | Some name_components ->
+       let name_prefix =
+         match
+           List.filter_map name_components ~f:(fun ident ->
+             longident_to_human_friendly_string ident.txt)
+         with
+         | [] -> None
+         | name_components -> Some (String.concat name_components ~sep:"_")
+       in
+       Renaming_env.rename env expression ~name_prefix)
+  | _ -> expression
+;;
+
+let sexp_of_constraint env ~omit_nil ~loc expr ctyp =
   let optional ty =
     let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty in
-    Optional (loc, expr, fun expr -> eapply ~loc sexp_of [ expr ])
+    Optional
+      ( loc
+      , rename_if_ident_or_field_access env expr
+      , fun expr -> [%expr [%e sexp_of] [%e expr]] )
   in
   match ctyp with
   | [%type: [%t? ty] option] when Option.is_some (Attribute.get option_attr ctyp) ->
@@ -58,7 +147,7 @@ let sexp_of_constraint ~omit_nil ~loc expr ctyp =
   | _ ->
     let expr =
       let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ctyp in
-      eapply ~loc sexp_of [ expr ]
+      [%expr [%e sexp_of] [%e rename_if_ident_or_field_access env expr]]
     in
     let omit_nil_attr =
       lazy
@@ -92,33 +181,34 @@ let rewrite_here e =
   | _ -> e
 ;;
 
-let sexp_of_expr ~omit_nil e =
+let sexp_of_expr env ~omit_nil e =
   let e = rewrite_here e in
   let loc = { e.pexp_loc with loc_ghost = true } in
   match e.pexp_desc with
   | Pexp_constant (Pconst_string ("", _, _)) -> Absent
   | Pexp_constant const ->
     present_or_omit_nil ~loc ~omit_nil:false (sexp_of_constant ~loc const)
-  | Pexp_constraint (expr, ctyp) -> sexp_of_constraint ~omit_nil ~loc expr ctyp
+  | Pexp_constraint (expr, ctyp) -> sexp_of_constraint env ~omit_nil ~loc expr ctyp
   | _ ->
+    let e = rename_if_ident_or_field_access env e in
     present_or_omit_nil
       ~loc
       ~omit_nil:false
       [%expr Ppx_sexp_conv_lib.Conv.sexp_of_string [%e e]]
 ;;
 
-let sexp_of_labelled_expr ~omit_nil (label, e) =
+let sexp_of_labelled_expr env ~omit_nil (label, e) =
   let loc = { e.pexp_loc with loc_ghost = true } in
   match label, e.pexp_desc with
   | Nolabel, Pexp_constraint (expr, _) ->
     let expr_str = Pprintast.string_of_expression expr in
     let k e = sexp_inline ~loc [ sexp_atom ~loc (estring ~loc expr_str); e ] in
-    wrap_sexp_if_present (sexp_of_expr ~omit_nil e) ~f:k
-  | Nolabel, _ -> sexp_of_expr ~omit_nil e
-  | Labelled "_", _ -> sexp_of_expr ~omit_nil e
+    wrap_sexp_if_present (sexp_of_expr ~omit_nil env e) ~f:k
+  | Nolabel, _ -> sexp_of_expr ~omit_nil env e
+  | Labelled "_", _ -> sexp_of_expr ~omit_nil env e
   | Labelled label, _ ->
     let k e = sexp_inline ~loc [ sexp_atom ~loc (estring ~loc label); e ] in
-    wrap_sexp_if_present (sexp_of_expr ~omit_nil e) ~f:k
+    wrap_sexp_if_present (sexp_of_expr ~omit_nil env e) ~f:k
   | Optional _, _ ->
     (* Could be used to encode sexp_option if that's ever needed. *)
     Location.raise_errorf ~loc "ppx_sexp_value: optional argument not allowed here"
@@ -127,19 +217,47 @@ let sexp_of_labelled_expr ~omit_nil (label, e) =
 (* Wrap up the generated code in a [@cold] function so it doesn't pollute the call site.
 
    Also, give that cold function a nice name so it's easy for assembly readers to figure
-   out why that function is being called. *)
-let wrap_in_cold_function ~loc expr =
+   out why that function is being called.
+
+   Effectively:
+
+   [%expr
+     let[@cold] ppx_sexp_message <parameters> = [%e expr] in
+     ppx_sexp_message <arguments> [@nontail]]
+
+   - We avoid allocating the closure in many cases by making [ppx_sexp_message]
+     close over as little as possible. Instead, it takes the elements of the
+     [%message ...] as arguments.
+     + We only avoid closing over identifiers and field accesses (hence
+       [rename_if_ident_or_field_access]). That's because the main goal of avoiding the
+       closure is to reduce the size of generated code in the caller to improve icache
+       behavior, and if the expression is not a simple identifier or field access, then
+       evaluating it in the caller may result in more code bloat than simply allocating
+       the closure.
+   - The [@nontail] lets us *stack* allocate the closure (with Jane Street extensions).
+     The sexp this is generating is still heap allocated but it's nice to keep the closure
+     allocation cheap where it's easy.
+*)
+let wrap_in_cold_function ~loc ~parameters ~arguments expr =
+  let parameters =
+    match parameters with
+    | [] -> [ [%pat? ()] ]
+    | ps -> ps
+  in
+  let arguments =
+    match arguments with
+    | [] -> [ [%expr ()] ]
+    | args -> args
+  in
   [%expr
-    let[@cold] ppx_sexp_message () = [%e expr] in
-    (* Prevent tail calls so the closure environment is always allocated locally (with
-       Jane Street extensions). The sexp this is generating is still allocated globally,
-       but it's nice to keep the closure allocation cheap where it's easy. *)
-    ppx_sexp_message () [@nontail]]
+    let[@cold] ppx_sexp_message = [%e eabstract ~loc parameters expr] in
+    [%e eapply ~loc [%expr ppx_sexp_message] arguments] [@nontail]]
 ;;
 
 let sexp_of_labelled_exprs ~omit_nil ~loc labels_and_exprs =
   let loc = { loc with loc_ghost = true } in
-  let l = List.map labels_and_exprs ~f:(sexp_of_labelled_expr ~omit_nil) in
+  let env = Renaming_env.create () in
+  let l = List.map labels_and_exprs ~f:(sexp_of_labelled_expr env ~omit_nil) in
   let res =
     List.fold_left (List.rev l) ~init:(elist ~loc []) ~f:(fun acc e ->
       match e with
@@ -177,7 +295,11 @@ let sexp_of_labelled_exprs ~omit_nil ~loc labels_and_exprs =
       | [%expr [ [%e? h] ]] -> h
       | _ -> sexp_list ~loc res)
   in
-  wrap_in_cold_function ~loc final_expr
+  wrap_in_cold_function
+    ~loc
+    ~parameters:(Renaming_env.names env)
+    ~arguments:(Renaming_env.original_expressions env)
+    final_expr
 ;;
 
 let expand ~omit_nil ~path:_ e =
@@ -193,6 +315,10 @@ let expand ~omit_nil ~path:_ e =
 let expand_opt ~omit_nil ~loc ~path = function
   | None ->
     let loc = { loc with loc_ghost = true } in
-    wrap_in_cold_function ~loc (sexp_list ~loc (elist ~loc []))
+    wrap_in_cold_function
+      ~loc
+      (sexp_list ~loc (elist ~loc []))
+      ~parameters:[]
+      ~arguments:[]
   | Some e -> expand ~omit_nil ~path e
 ;;

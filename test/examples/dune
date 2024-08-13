@@ -1,0 +1,16 @@
+(library
+ (name test_ppx_sexp_message_examples)
+ (libraries core)
+ (preprocess
+  (pps ppx_cold ppx_here ppx_sexp_message ppx_string)))
+
+(rule
+ (targets examples_generated.ml)
+ (deps %{workspace_root}/bin/apply-style examples.ml.pp)
+ (action
+  (bash
+    "{ echo \"(* Auto-generated in the jbuild from examples.ml *)\";\n      cat examples.ml.pp;\n    } > examples_generated.ml && %{workspace_root}/bin/apply-style -in-place %{targets}")))
+
+(alias
+ (name DEFAULT)
+ (deps examples_generated.ml))

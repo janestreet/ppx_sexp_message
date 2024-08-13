@@ -118,16 +118,16 @@ let%expect_test "[%lazy_message]" =
 let%expect_test "[%message] is not lazy" =
   let side_effect = ref false in
   let _ = [%message (side_effect := true : unit)] in
-  Expect_test_helpers_base.require [%here] !side_effect;
+  Expect_test_helpers_base.require !side_effect;
   [%expect {| |}]
 ;;
 
 let%expect_test "[%message_lazy] is lazy" =
   let side_effect = ref false in
   let lazy_message = [%lazy_message (side_effect := true : unit)] in
-  Expect_test_helpers_base.require_equal [%here] (module Bool) !side_effect false;
+  Expect_test_helpers_base.require_equal (module Bool) !side_effect false;
   [%expect {| |}];
   let _ = Lazy.force lazy_message in
-  Expect_test_helpers_base.require [%here] !side_effect;
+  Expect_test_helpers_base.require !side_effect;
   [%expect {| |}]
 ;;
