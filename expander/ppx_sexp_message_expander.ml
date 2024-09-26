@@ -184,11 +184,12 @@ let rewrite_here e =
 let sexp_of_expr env ~omit_nil e =
   let e = rewrite_here e in
   let loc = { e.pexp_loc with loc_ghost = true } in
-  match e.pexp_desc with
+  match Ppxlib_jane.Shim.Expression_desc.of_parsetree ~loc:e.pexp_loc e.pexp_desc with
   | Pexp_constant (Pconst_string ("", _, _)) -> Absent
   | Pexp_constant const ->
     present_or_omit_nil ~loc ~omit_nil:false (sexp_of_constant ~loc const)
-  | Pexp_constraint (expr, ctyp) -> sexp_of_constraint env ~omit_nil ~loc expr ctyp
+  | Pexp_constraint (expr, Some ctyp, _) ->
+    sexp_of_constraint env ~omit_nil ~loc expr ctyp
   | _ ->
     let e = rename_if_ident_or_field_access env e in
     present_or_omit_nil
@@ -199,8 +200,10 @@ let sexp_of_expr env ~omit_nil e =
 
 let sexp_of_labelled_expr env ~omit_nil (label, e) =
   let loc = { e.pexp_loc with loc_ghost = true } in
-  match label, e.pexp_desc with
-  | Nolabel, Pexp_constraint (expr, _) ->
+  match
+    label, Ppxlib_jane.Shim.Expression_desc.of_parsetree ~loc:e.pexp_loc e.pexp_desc
+  with
+  | Nolabel, Pexp_constraint (expr, _, _) ->
     let expr_str = Pprintast.string_of_expression expr in
     let k e = sexp_inline ~loc [ sexp_atom ~loc (estring ~loc expr_str); e ] in
     wrap_sexp_if_present (sexp_of_expr ~omit_nil env e) ~f:k
