@@ -161,17 +161,20 @@ let sexp_of_constraint env ~omit_nil ~loc expr ctyp =
 ;;
 
 let sexp_of_constant ~loc const =
-  let f typ =
+  let mk typ const =
     eapply
       ~loc
       (evar ~loc ("Ppx_sexp_conv_lib.Conv.sexp_of_" ^ typ))
       [ pexp_constant ~loc const ]
   in
-  match const with
+  let f typ = mk typ const in
+  match Ppxlib_jane.Shim.Constant.of_parsetree const with
   | Pconst_integer _ -> f "int"
   | Pconst_char _ -> f "char"
   | Pconst_string _ -> f "string"
   | Pconst_float _ -> f "float"
+  | Pconst_unboxed_float (x, c) -> mk "float" (Pconst_float (x, c))
+  | Pconst_unboxed_integer (x, c) -> mk "int" (Pconst_integer (x, Some c))
 ;;
 
 let rewrite_here e =
