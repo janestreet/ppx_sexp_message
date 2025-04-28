@@ -134,7 +134,7 @@ let rename_if_ident_or_field_access env expression =
 
 let sexp_of_constraint env ~omit_nil ~loc expr ctyp =
   let optional ty =
-    let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty in
+    let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty ~localize:false in
     Optional
       ( loc
       , rename_if_ident_or_field_access env expr
@@ -146,7 +146,7 @@ let sexp_of_constraint env ~omit_nil ~loc expr ctyp =
   | [%type: [%t? ty] option] when omit_nil -> optional ty
   | _ ->
     let expr =
-      let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ctyp in
+      let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ctyp ~localize:false in
       [%expr [%e sexp_of] [%e rename_if_ident_or_field_access env expr]]
     in
     let omit_nil_attr =
