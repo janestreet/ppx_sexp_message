@@ -1,6 +1,7 @@
 (library
  (name test_ppx_sexp_message_lib)
- (libraries core expect_test_helpers_core.expect_test_helpers_base int64_u)
+ (libraries core expect_test_helpers_core.expect_test_helpers_base
+   unboxed.int64_u)
  (preprocess
   (pps ppx_here ppx_sexp_conv ppx_sexp_message ppx_expect ppx_string
     ppx_template)))
