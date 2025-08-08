@@ -148,6 +148,43 @@ let execute_query_exn ~database ~query =
             [%lazy_message "Query failed" (database : Database.t) (query : Query.t)])
 ```
 
+#### Stack allocation
+
+The extension points `[%message__stack]` and `[%message.omit_nil__stack]` can be used to
+return stack allocated sexps:
+
+```ocaml
+open Core
+
+let message ~src ~dst =
+  [%message__stack
+    "Error while renaming file"
+      ~source:(tmpfile : string)
+      ~dest:  (dst     : string)
+  ]
+```
+
+This will prompt the ppx to reach for `sexp_of_*__stack` functions over `sexp_of_*`
+functions.
+
+For ease of use, the ppx can be used in conjuction with
+[`ppx_template`](%{root}/ppx/ppx_template/doc/README.mdx):
+
+```ocaml
+open Core
+
+let%template[@alloc a = stack] message ~src ~dst =
+  [%message
+    "Error while renaming file"
+      ~source:(tmpfile : string)
+      ~dest:  (dst     : string)
+  ] [@alloc a] [@exclave_if_stack a]
+```
+
+This transforms `[%message ...]` into `[%message__stack ...]`.
+
+Stack and lazy features cannot be used together.
+
 #### Misc
 
 For convenience and continuity of the syntax `[%message]` becomes

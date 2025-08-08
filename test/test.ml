@@ -1,61 +1,76 @@
 open Core
 
-let () = Expect_test_helpers_base.sexp_style := To_string_hum
-let pr sexp = Expect_test_helpers_base.print_s ~hide_positions:true sexp
+let () = Dynamic.set_root Expect_test_helpers_base.sexp_style To_string_hum
+let%template[@alloc heap] globalize_sexp sexp = sexp
+let%template[@alloc stack] globalize_sexp sexp = Sexp.globalize sexp
+
+[%%template
+[@@@alloc.default a @ m = (heap_global, stack_local)]
+
+let pr sexp =
+  let sexp = (globalize_sexp [@alloc a]) sexp in
+  Expect_test_helpers_base.print_s ~hide_positions:true sexp
+;;
 
 let%expect_test "[%message]" =
   let x = 42
   and y = "forty-two" in
-  pr [%message "foo" 1 2 3 "blah"];
+  (pr [@alloc a]) ([%message "foo" 1 2 3 "blah"] [@alloc a]);
   [%expect {| (foo 1 2 3 blah) |}];
-  pr [%message "foo" (x : int) (y : string) (x + String.length y : int)];
+  (pr [@alloc a])
+    ([%message "foo" (x : int) (y : string) (x + String.length y : int)] [@alloc a]);
   [%expect {| (foo (x 42) (y forty-two) ("x + (String.length y)" 51)) |}];
-  pr [%message "foo" (x : int) (y : string) ~blah:(x + String.length y : int)];
+  (pr [@alloc a])
+    ([%message "foo" (x : int) (y : string) ~blah:(x + String.length y : int)] [@alloc a]);
   [%expect {| (foo (x 42) (y forty-two) (blah 51)) |}];
-  pr [%message "foo" ~_:(x : int) ~_:1 ~blah:(0 : int)];
+  (pr [@alloc a]) ([%message "foo" ~_:(x : int) ~_:1 ~blah:(0 : int)] [@alloc a]);
   [%expect {| (foo 42 1 (blah 0)) |}];
-  pr [%message "foo" [%here]];
+  (pr [@alloc a]) ([%message "foo" [%here]] [@alloc a]);
   [%expect {| (foo ppx/ppx_sexp_message/test/test.ml:LINE:COL) |}];
-  pr [%message "foo" ~loc:[%here]];
+  (pr [@alloc a]) ([%message "foo" ~loc:[%here]] [@alloc a]);
   [%expect {| (foo (loc ppx/ppx_sexp_message/test/test.ml:LINE:COL)) |}];
-  pr [%message "foo" ~_:[%here]];
+  (pr [@alloc a]) ([%message "foo" ~_:[%here]] [@alloc a]);
   [%expect {| (foo ppx/ppx_sexp_message/test/test.ml:LINE:COL) |}];
-  pr [%message [%here] "blah"];
+  (pr [@alloc a]) ([%message [%here] "blah"] [@alloc a]);
   [%expect "(ppx/ppx_sexp_message/test/test.ml:LINE:COL blah)"];
-  pr [%message (sprintf "foo %d" x) (y : string)];
+  (pr [@alloc a]) ([%message (sprintf "foo %d" x) (y : string)] [@alloc a]);
   [%expect {| ("foo 42" (y forty-two)) |}];
-  pr [%message "hello"];
+  (pr [@alloc a]) ([%message "hello"] [@alloc a]);
   [%expect {| hello |}];
-  pr [%message y y];
+  (pr [@alloc a]) ([%message y y] [@alloc a]);
   [%expect {| (forty-two forty-two) |}];
-  pr [%message (sprintf "a") ""];
+  (pr [@alloc a]) ([%message (sprintf "a") ""] [@alloc a]);
   [%expect {| a |}];
-  pr [%message "" (sprintf "%s" "a")];
+  (pr [@alloc a]) ([%message "" (sprintf "%s" "a")] [@alloc a]);
   [%expect {| a |}];
-  pr [%message [%here]];
+  (pr [@alloc a]) ([%message [%here]] [@alloc a]);
   [%expect {| ppx/ppx_sexp_message/test/test.ml:LINE:COL |}];
-  pr [%message [%string "foo"]];
+  (pr [@alloc a]) ([%message [%string "foo"]] [@alloc a]);
   [%expect {| foo |}];
-  pr [%message (x : int)];
+  (pr [@alloc a]) ([%message (x : int)] [@alloc a]);
   [%expect {| (x 42) |}];
-  pr [%message (x : int) (y : string)];
+  (pr [@alloc a]) ([%message (x : int) (y : string)] [@alloc a]);
   [%expect {| ((x 42) (y forty-two)) |}];
-  pr [%message "" ~_:(x : int) (y : string)];
+  (pr [@alloc a]) ([%message "" ~_:(x : int) (y : string)] [@alloc a]);
   [%expect {| (42 (y forty-two)) |}];
   (* This is a bit weird but consistent. *)
-  pr [%message "foo" ~a:""];
+  (pr [@alloc a]) ([%message "foo" ~a:""] [@alloc a]);
   [%expect {| foo |}];
-  pr [%message];
+  (pr [@alloc a]) ([%message] [@alloc a]);
   [%expect {| () |}];
-  pr [%message (Some 1 : (int option[@sexp.option])) (None : (int option[@sexp.option]))];
+  (pr [@alloc a])
+    ([%message (Some 1 : (int option[@sexp.option])) (None : (int option[@sexp.option]))]
+    [@alloc a]);
   [%expect {| ("Some 1" 1) |}];
-  pr [%message ([ 1 ] : (int list[@omit_nil])) ([] : (int list[@omit_nil]))];
+  (pr [@alloc a])
+    ([%message ([ 1 ] : (int list[@omit_nil])) ([] : (int list[@omit_nil]))] [@alloc a]);
   [%expect {| ([1] (1)) |}];
-  pr [%message.omit_nil (Some 1 : int option) (None : int option)];
+  (pr [@alloc a])
+    ([%message.omit_nil (Some 1 : int option) (None : int option)] [@alloc a]);
   [%expect {| ("Some 1" 1) |}];
-  pr [%message.omit_nil ([ 1 ] : int list) ([] : int list)];
+  (pr [@alloc a]) ([%message.omit_nil ([ 1 ] : int list) ([] : int list)] [@alloc a]);
   [%expect {| ([1] (1)) |}]
-;;
+;;]
 
 let pr_lazy lazy_sexp = pr (Lazy.force lazy_sexp)
 
