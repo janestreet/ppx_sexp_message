@@ -132,9 +132,9 @@ let rename_if_ident_or_field_access env expression =
   | _ -> expression
 ;;
 
-let sexp_of_constraint env ~omit_nil ~loc expr ctyp =
+let sexp_of_constraint env ~omit_nil ~stackify ~loc expr ctyp =
   let optional ty =
-    let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty ~localize:false in
+    let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty ~stackify in
     Optional
       ( loc
       , rename_if_ident_or_field_access env expr
@@ -146,7 +146,7 @@ let sexp_of_constraint env ~omit_nil ~loc expr ctyp =
   | [%type: [%t? ty] option] when omit_nil -> optional ty
   | _ ->
     let expr =
-      let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ctyp ~localize:false in
+      let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ctyp ~stackify in
       [%expr [%e sexp_of] [%e rename_if_ident_or_field_access env expr]]
     in
     let omit_nil_attr =
@@ -160,11 +160,12 @@ let sexp_of_constraint env ~omit_nil ~loc expr ctyp =
     present_or_omit_nil ~loc expr ~omit_nil:(omit_nil || Lazy.force omit_nil_attr)
 ;;
 
-let sexp_of_constant ~loc const =
+let sexp_of_constant ~loc ~stackify const =
+  let stackify_suffix = if stackify then "__stack" else "" in
   let mk typ const =
     eapply
       ~loc
-      (evar ~loc ("Ppx_sexp_conv_lib.Conv.sexp_of_" ^ typ))
+      (evar ~loc ("Ppx_sexp_conv_lib.Conv.sexp_of_" ^ typ ^ stackify_suffix))
       [ pexp_constant ~loc const ]
   in
   let f typ = mk typ const in
@@ -175,6 +176,7 @@ let sexp_of_constant ~loc const =
   | Pconst_float _ -> f "float"
   | Pconst_unboxed_float (x, c) -> mk "float" (Pconst_float (x, c))
   | Pconst_unboxed_integer (x, c) -> mk "int" (Pconst_integer (x, Some c))
+  | Pconst_untagged_char c -> mk "char" (Pconst_char c)
 ;;
 
 let rewrite_here e =
@@ -184,24 +186,26 @@ let rewrite_here e =
   | _ -> e
 ;;
 
-let sexp_of_expr env ~omit_nil e =
+let sexp_of_expr env ~omit_nil ~stackify e =
   let e = rewrite_here e in
   let loc = { e.pexp_loc with loc_ghost = true } in
   match Ppxlib_jane.Shim.Expression_desc.of_parsetree ~loc:e.pexp_loc e.pexp_desc with
   | Pexp_constant (Pconst_string ("", _, _)) -> Absent
   | Pexp_constant const ->
-    present_or_omit_nil ~loc ~omit_nil:false (sexp_of_constant ~loc const)
+    present_or_omit_nil ~loc ~omit_nil:false (sexp_of_constant ~loc ~stackify const)
   | Pexp_constraint (expr, Some ctyp, _) ->
-    sexp_of_constraint env ~omit_nil ~loc expr ctyp
+    sexp_of_constraint env ~omit_nil ~stackify ~loc expr ctyp
   | _ ->
     let e = rename_if_ident_or_field_access env e in
-    present_or_omit_nil
-      ~loc
-      ~omit_nil:false
-      [%expr Ppx_sexp_conv_lib.Conv.sexp_of_string [%e e]]
+    let sexp_of_string =
+      if stackify
+      then [%expr Ppx_sexp_conv_lib.Conv.sexp_of_string__stack]
+      else [%expr Ppx_sexp_conv_lib.Conv.sexp_of_string]
+    in
+    present_or_omit_nil ~loc ~omit_nil:false [%expr [%e sexp_of_string] [%e e]]
 ;;
 
-let sexp_of_labelled_expr env ~omit_nil (label, e) =
+let sexp_of_labelled_expr env ~omit_nil ~stackify (label, e) =
   let loc = { e.pexp_loc with loc_ghost = true } in
   match
     label, Ppxlib_jane.Shim.Expression_desc.of_parsetree ~loc:e.pexp_loc e.pexp_desc
@@ -209,12 +213,12 @@ let sexp_of_labelled_expr env ~omit_nil (label, e) =
   | Nolabel, Pexp_constraint (expr, _, _) ->
     let expr_str = Pprintast.string_of_expression expr in
     let k e = sexp_inline ~loc [ sexp_atom ~loc (estring ~loc expr_str); e ] in
-    wrap_sexp_if_present (sexp_of_expr ~omit_nil env e) ~f:k
-  | Nolabel, _ -> sexp_of_expr ~omit_nil env e
-  | Labelled "_", _ -> sexp_of_expr ~omit_nil env e
+    wrap_sexp_if_present (sexp_of_expr ~omit_nil ~stackify env e) ~f:k
+  | Nolabel, _ -> sexp_of_expr ~omit_nil ~stackify env e
+  | Labelled "_", _ -> sexp_of_expr ~omit_nil ~stackify env e
   | Labelled label, _ ->
     let k e = sexp_inline ~loc [ sexp_atom ~loc (estring ~loc label); e ] in
-    wrap_sexp_if_present (sexp_of_expr ~omit_nil env e) ~f:k
+    wrap_sexp_if_present (sexp_of_expr ~omit_nil ~stackify env e) ~f:k
   | Optional _, _ ->
     (* Could be used to encode sexp_option if that's ever needed. *)
     Location.raise_errorf ~loc "ppx_sexp_value: optional argument not allowed here"
@@ -244,7 +248,7 @@ let sexp_of_labelled_expr env ~omit_nil (label, e) =
      The sexp this is generating is still heap allocated but it's nice to keep the closure
      allocation cheap where it's easy.
 *)
-let wrap_in_cold_function ~loc ~parameters ~arguments expr =
+let wrap_in_cold_function ~loc ~parameters ~arguments ~stackify expr =
   let parameters =
     match parameters with
     | [] -> [ [%pat? ()] ]
@@ -255,15 +259,16 @@ let wrap_in_cold_function ~loc ~parameters ~arguments expr =
     | [] -> [ [%expr ()] ]
     | args -> args
   in
+  let expr = if stackify then [%expr exclave_ [%e expr]] else expr in
   [%expr
     let[@cold] ppx_sexp_message = [%e eabstract ~loc parameters expr] in
     [%e eapply ~loc [%expr ppx_sexp_message] arguments] [@nontail]]
 ;;
 
-let sexp_of_labelled_exprs ~omit_nil ~loc labels_and_exprs =
+let sexp_of_labelled_exprs ~omit_nil ~stackify ~loc labels_and_exprs =
   let loc = { loc with loc_ghost = true } in
   let env = Renaming_env.create () in
-  let l = List.map labels_and_exprs ~f:(sexp_of_labelled_expr env ~omit_nil) in
+  let l = List.map labels_and_exprs ~f:(sexp_of_labelled_expr env ~omit_nil ~stackify) in
   let res =
     List.fold_left (List.rev l) ~init:(elist ~loc []) ~f:(fun acc e ->
       match e with
@@ -305,26 +310,29 @@ let sexp_of_labelled_exprs ~omit_nil ~loc labels_and_exprs =
     ~loc
     ~parameters:(Renaming_env.names env)
     ~arguments:(Renaming_env.original_expressions env)
+    ~stackify
     final_expr
 ;;
 
-let expand ~omit_nil ~path:_ e =
+let expand ~omit_nil ~stackify ~path:_ e =
   let loc = e.pexp_loc in
   let labelled_exprs =
     match e.pexp_desc with
     | Pexp_apply (f, args) -> (Nolabel, f) :: args
     | _ -> [ Nolabel, e ]
   in
-  sexp_of_labelled_exprs ~omit_nil ~loc labelled_exprs
+  sexp_of_labelled_exprs ~omit_nil ~stackify ~loc labelled_exprs
 ;;
 
-let expand_opt ~omit_nil ~loc ~path = function
+let expand_opt ~omit_nil ~stackify ~loc ~path opt =
+  match opt with
   | None ->
     let loc = { loc with loc_ghost = true } in
     wrap_in_cold_function
-      ~loc
       (sexp_list ~loc (elist ~loc []))
+      ~loc
       ~parameters:[]
       ~arguments:[]
-  | Some e -> expand ~omit_nil ~path e
+      ~stackify
+  | Some e -> expand ~omit_nil ~stackify ~path e
 ;;
