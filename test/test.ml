@@ -63,11 +63,19 @@ let%expect_test "[%message]" =
     [@alloc a]);
   [%expect {| ("Some 1" 1) |}];
   (pr [@alloc a])
+    ([%message
+       (This 1 : (int or_null[@sexp.or_null])) (Null : (int or_null[@sexp.or_null]))]
+    [@alloc a]);
+  [%expect {| ("This 1" 1) |}];
+  (pr [@alloc a])
     ([%message ([ 1 ] : (int list[@omit_nil])) ([] : (int list[@omit_nil]))] [@alloc a]);
   [%expect {| ([1] (1)) |}];
   (pr [@alloc a])
     ([%message.omit_nil (Some 1 : int option) (None : int option)] [@alloc a]);
   [%expect {| ("Some 1" 1) |}];
+  (pr [@alloc a])
+    ([%message.omit_nil (This 1 : int or_null) (Null : int or_null)] [@alloc a]);
+  [%expect {| ("This 1" 1) |}];
   (pr [@alloc a]) ([%message.omit_nil ([ 1 ] : int list) ([] : int list)] [@alloc a]);
   [%expect {| ([1] (1)) |}]
 ;;]
@@ -122,10 +130,16 @@ let%expect_test "[%lazy_message]" =
     [%lazy_message
       (Some 1 : (int option[@sexp.option])) (None : (int option[@sexp.option]))];
   [%expect {| ("Some 1" 1) |}];
+  pr_lazy
+    [%lazy_message
+      (This 1 : (int or_null[@sexp.or_null])) (Null : (int or_null[@sexp.or_null]))];
+  [%expect {| ("This 1" 1) |}];
   pr_lazy [%lazy_message ([ 1 ] : (int list[@omit_nil])) ([] : (int list[@omit_nil]))];
   [%expect {| ([1] (1)) |}];
   pr_lazy [%lazy_message.omit_nil (Some 1 : int option) (None : int option)];
   [%expect {| ("Some 1" 1) |}];
+  pr_lazy [%lazy_message.omit_nil (This 1 : int or_null) (Null : int or_null)];
+  [%expect {| ("This 1" 1) |}];
   pr_lazy [%lazy_message.omit_nil ([ 1 ] : int list) ([] : int list)];
   [%expect {| ([1] (1)) |}]
 ;;

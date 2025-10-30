@@ -100,7 +100,13 @@ When an expression is annotated with a type, if the type has the
 syntax `a option [@sexp.option]` for some `a`, then:
 
 - when the value is `None`, the tag and expression are omitted
-- when the value is  `Some x`, then the tag and `x` are displayed
+- when the value is `Some x`, then the tag and `x` are displayed
+
+When an expression is annotated with a type, if the type has the
+syntax `a or_null [@sexp.or_null]` for some `a`, then:
+
+- when the value is `Null`, the tag and expression are omitted
+- when the value is `This x`, then the tag and `x` are displayed
 
 If the type annotation has the attribute `[@sexp.omit_nil]`, then when
 the expression is converted into an sexp, if that sexp is `()`, then
@@ -108,8 +114,8 @@ both the tag and the expression are omitted.
 
 One can also use `[%message.omit_nil exprs]`, which is a variation of
 `[%message exprs]` which behaves as if all `option` types were annotated
-with `[@sexp.option]` and all other expressions were annotated with
-`[@sexp.omit_nil]`.
+with `[@sexp.option]`, all `or_null` types were annotated with `[@sexp.or_null]`, and all
+other expressions were annotated with `[@sexp.omit_nil]`.
 
 #### Special case of the empty string
 

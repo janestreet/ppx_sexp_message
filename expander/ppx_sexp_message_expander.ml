@@ -18,6 +18,14 @@ let option_attr =
     ()
 ;;
 
+let or_null_attr =
+  Attribute.declare
+    "sexp_message.sexp.or_null"
+    Attribute.Context.core_type
+    Ast_pattern.(pstr nil)
+    ()
+;;
+
 let sexp_atom ~loc x = [%expr Ppx_sexp_conv_lib.Sexp.Atom [%e x]]
 let sexp_list ~loc x = [%expr Ppx_sexp_conv_lib.Sexp.List [%e x]]
 
@@ -31,6 +39,7 @@ let sexp_inline ~loc l =
 type omittable_sexp =
   | Present of expression
   | Optional of Location.t * expression * (expression -> expression)
+  | Nullable of Location.t * expression * (expression -> expression)
   | Omit_nil of Location.t * expression * (expression -> expression)
   | Absent
 
@@ -42,6 +51,7 @@ let wrap_sexp_if_present omittable_sexp ~f =
   match omittable_sexp with
   | Present e -> Present (f e)
   | Optional (loc, e, k) -> Optional (loc, e, fun e -> f (k e))
+  | Nullable (loc, e, k) -> Nullable (loc, e, fun e -> f (k e))
   | Omit_nil (loc, e, k) -> Omit_nil (loc, e, fun e -> f (k e))
   | Absent -> Absent
 ;;
@@ -140,10 +150,20 @@ let sexp_of_constraint env ~omit_nil ~stackify ~loc expr ctyp =
       , rename_if_ident_or_field_access env expr
       , fun expr -> [%expr [%e sexp_of] [%e expr]] )
   in
+  let nullable ty =
+    let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty ~stackify in
+    Nullable
+      ( loc
+      , rename_if_ident_or_field_access env expr
+      , fun expr -> [%expr [%e sexp_of] [%e expr]] )
+  in
   match ctyp with
   | [%type: [%t? ty] option] when Option.is_some (Attribute.get option_attr ctyp) ->
     optional ty
+  | [%type: [%t? ty] or_null] when Option.is_some (Attribute.get or_null_attr ctyp) ->
+    nullable ty
   | [%type: [%t? ty] option] when omit_nil -> optional ty
+  | [%type: [%t? ty] or_null] when omit_nil -> nullable ty
   | _ ->
     let expr =
       let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ctyp ~stackify in
@@ -281,6 +301,13 @@ let sexp_of_labelled_exprs ~omit_nil ~stackify ~loc labels_and_exprs =
           match [%e v_opt], [%e acc] with
           | None, tl -> tl
           | Some v, tl -> [%e k [%expr v]] :: tl]
+      | Nullable (_, v_orn, k) ->
+        (* We match simultaneously on the head and tail in the generated code to avoid
+           changing their respective typing environments. *)
+        [%expr
+          match [%e v_orn], [%e acc] with
+          | Null, tl -> tl
+          | This v, tl -> [%e k [%expr v]] :: tl]
       | Omit_nil (_, e, k) ->
         [%expr
           match [%e e], [%e acc] with
@@ -289,7 +316,7 @@ let sexp_of_labelled_exprs ~omit_nil ~stackify ~loc labels_and_exprs =
   in
   let has_optional_values =
     List.exists l ~f:(function
-      | (Optional _ | Omit_nil _ : omittable_sexp) -> true
+      | (Optional _ | Nullable _ | Omit_nil _ : omittable_sexp) -> true
       | Present _ | Absent -> false)
   in
   (* The two branches do the same thing, but when there are no optional values, we can do
