@@ -45,8 +45,13 @@ end
          (Some 1 : (int option[@sexp.option])) (None : (int option[@sexp.option]))]
       [@alloc a]);
     eg
+      ([%message
+         (This 1 : (int or_null[@sexp.or_null])) (Null : (int or_null[@sexp.or_null]))]
+      [@alloc a]);
+    eg
       ([%message ([ 1 ] : (int list[@omit_nil])) ([] : (int list[@omit_nil]))] [@alloc a]);
     eg ([%message.omit_nil (Some 1 : int option) (None : int option)] [@alloc a]);
+    eg ([%message.omit_nil (This 1 : int or_null) (Null : int or_null)] [@alloc a]);
     eg ([%message.omit_nil ([ 1 ] : int list) ([] : int list)] [@alloc a])
   ;;]
 
@@ -80,8 +85,12 @@ end
     eg
       [%lazy_message
         (Some 1 : (int option[@sexp.option])) (None : (int option[@sexp.option]))];
+    eg
+      [%lazy_message
+        (This 1 : (int or_null[@sexp.or_null])) (Null : (int or_null[@sexp.or_null]))];
     eg [%lazy_message ([ 1 ] : (int list[@omit_nil])) ([] : (int list[@omit_nil]))];
     eg [%lazy_message.omit_nil (Some 1 : int option) (None : int option)];
+    eg [%lazy_message.omit_nil (This 1 : int or_null) (Null : int or_null)];
     eg [%lazy_message.omit_nil ([ 1 ] : int list) ([] : int list)]
   ;;]
 
@@ -323,6 +332,29 @@ include struct
       (let ppx_sexp_message () =
          match
            match
+             ( This 1
+             , match Null, [] with
+               | Null, tl -> tl
+               | This v, tl ->
+                 Ppx_sexp_conv_lib.Sexp.List
+                   [ Ppx_sexp_conv_lib.Sexp.Atom "Null"; (sexp_of_int [@merlin.hide]) v ]
+                 :: tl )
+           with
+           | Null, tl -> tl
+           | This v, tl ->
+             Ppx_sexp_conv_lib.Sexp.List
+               [ Ppx_sexp_conv_lib.Sexp.Atom "This 1"; (sexp_of_int [@merlin.hide]) v ]
+             :: tl
+         with
+         | h :: [] -> h
+         | ([] | _ :: _ :: _) as res -> Ppx_sexp_conv_lib.Sexp.List res
+           [@@cold]
+       in
+       ppx_sexp_message () [@nontail]);
+    eg
+      (let ppx_sexp_message () =
+         match
+           match
              ( (fun [@merlin.hide] x__016_ -> sexp_of_list sexp_of_int x__016_) [ 1 ]
              , match
                  (fun [@merlin.hide] x__017_ -> sexp_of_list sexp_of_int x__017_) [], []
@@ -357,6 +389,29 @@ include struct
            | Some v, tl ->
              Ppx_sexp_conv_lib.Sexp.List
                [ Ppx_sexp_conv_lib.Sexp.Atom "Some 1"; (sexp_of_int [@merlin.hide]) v ]
+             :: tl
+         with
+         | h :: [] -> h
+         | ([] | _ :: _ :: _) as res -> Ppx_sexp_conv_lib.Sexp.List res
+           [@@cold]
+       in
+       ppx_sexp_message () [@nontail]);
+    eg
+      (let ppx_sexp_message () =
+         match
+           match
+             ( This 1
+             , match Null, [] with
+               | Null, tl -> tl
+               | This v, tl ->
+                 Ppx_sexp_conv_lib.Sexp.List
+                   [ Ppx_sexp_conv_lib.Sexp.Atom "Null"; (sexp_of_int [@merlin.hide]) v ]
+                 :: tl )
+           with
+           | Null, tl -> tl
+           | This v, tl ->
+             Ppx_sexp_conv_lib.Sexp.List
+               [ Ppx_sexp_conv_lib.Sexp.Atom "This 1"; (sexp_of_int [@merlin.hide]) v ]
              :: tl
          with
          | h :: [] -> h
@@ -647,6 +702,33 @@ include struct
       (let ppx_sexp_message () = exclave_
          match
            match
+             ( This 1
+             , match Null, [] with
+               | Null, tl -> tl
+               | This v, tl ->
+                 Ppx_sexp_conv_lib.Sexp.List
+                   [ Ppx_sexp_conv_lib.Sexp.Atom "Null"
+                   ; (sexp_of_int__stack [@merlin.hide]) v
+                   ]
+                 :: tl )
+           with
+           | Null, tl -> tl
+           | This v, tl ->
+             Ppx_sexp_conv_lib.Sexp.List
+               [ Ppx_sexp_conv_lib.Sexp.Atom "This 1"
+               ; (sexp_of_int__stack [@merlin.hide]) v
+               ]
+             :: tl
+         with
+         | h :: [] -> h
+         | ([] | _ :: _ :: _) as res -> Ppx_sexp_conv_lib.Sexp.List res
+           [@@cold]
+       in
+       ppx_sexp_message () [@nontail]);
+    eg
+      (let ppx_sexp_message () = exclave_
+         match
+           match
              ( (fun [@merlin.hide] x__035_ -> exclave_
                  sexp_of_list__stack sexp_of_int__stack x__035_)
                  [ 1 ]
@@ -688,6 +770,33 @@ include struct
            | Some v, tl ->
              Ppx_sexp_conv_lib.Sexp.List
                [ Ppx_sexp_conv_lib.Sexp.Atom "Some 1"
+               ; (sexp_of_int__stack [@merlin.hide]) v
+               ]
+             :: tl
+         with
+         | h :: [] -> h
+         | ([] | _ :: _ :: _) as res -> Ppx_sexp_conv_lib.Sexp.List res
+           [@@cold]
+       in
+       ppx_sexp_message () [@nontail]);
+    eg
+      (let ppx_sexp_message () = exclave_
+         match
+           match
+             ( This 1
+             , match Null, [] with
+               | Null, tl -> tl
+               | This v, tl ->
+                 Ppx_sexp_conv_lib.Sexp.List
+                   [ Ppx_sexp_conv_lib.Sexp.Atom "Null"
+                   ; (sexp_of_int__stack [@merlin.hide]) v
+                   ]
+                 :: tl )
+           with
+           | Null, tl -> tl
+           | This v, tl ->
+             Ppx_sexp_conv_lib.Sexp.List
+               [ Ppx_sexp_conv_lib.Sexp.Atom "This 1"
                ; (sexp_of_int__stack [@merlin.hide]) v
                ]
              :: tl
@@ -803,7 +912,7 @@ let () =
          Ppx_sexp_conv_lib.Sexp.List
            [ Ppx_sexp_conv_lib.Conv.sexp_of_string "foo"
            ; Ppx_sexp_conv_lib.Conv.sexp_of_string
-               "ppx/ppx_sexp_message/test/examples/examples.ml:63:28"
+               "ppx/ppx_sexp_message/test/examples/examples.ml:68:28"
            ]
            [@@cold]
        in
@@ -816,7 +925,7 @@ let () =
            ; Ppx_sexp_conv_lib.Sexp.List
                [ Ppx_sexp_conv_lib.Sexp.Atom "loc"
                ; Ppx_sexp_conv_lib.Conv.sexp_of_string
-                   "ppx/ppx_sexp_message/test/examples/examples.ml:64:33"
+                   "ppx/ppx_sexp_message/test/examples/examples.ml:69:33"
                ]
            ]
            [@@cold]
@@ -828,7 +937,7 @@ let () =
          Ppx_sexp_conv_lib.Sexp.List
            [ Ppx_sexp_conv_lib.Conv.sexp_of_string "foo"
            ; Ppx_sexp_conv_lib.Conv.sexp_of_string
-               "ppx/ppx_sexp_message/test/examples/examples.ml:65:31"
+               "ppx/ppx_sexp_message/test/examples/examples.ml:70:31"
            ]
            [@@cold]
        in
@@ -838,7 +947,7 @@ let () =
       (let ppx_sexp_message () =
          Ppx_sexp_conv_lib.Sexp.List
            [ Ppx_sexp_conv_lib.Conv.sexp_of_string
-               "ppx/ppx_sexp_message/test/examples/examples.ml:66:22"
+               "ppx/ppx_sexp_message/test/examples/examples.ml:71:22"
            ; Ppx_sexp_conv_lib.Conv.sexp_of_string "blah"
            ]
            [@@cold]
@@ -889,7 +998,7 @@ let () =
     (lazy
       (let ppx_sexp_message () =
          Ppx_sexp_conv_lib.Conv.sexp_of_string
-           "ppx/ppx_sexp_message/test/examples/examples.ml:72:22"
+           "ppx/ppx_sexp_message/test/examples/examples.ml:77:22"
            [@@cold]
        in
        ppx_sexp_message () [@nontail]));
@@ -989,6 +1098,30 @@ let () =
       (let ppx_sexp_message () =
          match
            match
+             ( This 1
+             , match Null, [] with
+               | Null, tl -> tl
+               | This v, tl ->
+                 Ppx_sexp_conv_lib.Sexp.List
+                   [ Ppx_sexp_conv_lib.Sexp.Atom "Null"; (sexp_of_int [@merlin.hide]) v ]
+                 :: tl )
+           with
+           | Null, tl -> tl
+           | This v, tl ->
+             Ppx_sexp_conv_lib.Sexp.List
+               [ Ppx_sexp_conv_lib.Sexp.Atom "This 1"; (sexp_of_int [@merlin.hide]) v ]
+             :: tl
+         with
+         | h :: [] -> h
+         | ([] | _ :: _ :: _) as res -> Ppx_sexp_conv_lib.Sexp.List res
+           [@@cold]
+       in
+       ppx_sexp_message () [@nontail]));
+  eg
+    (lazy
+      (let ppx_sexp_message () =
+         match
+           match
              ( (fun [@merlin.hide] x__054_ -> sexp_of_list sexp_of_int x__054_) [ 1 ]
              , match
                  (fun [@merlin.hide] x__055_ -> sexp_of_list sexp_of_int x__055_) [], []
@@ -1024,6 +1157,30 @@ let () =
            | Some v, tl ->
              Ppx_sexp_conv_lib.Sexp.List
                [ Ppx_sexp_conv_lib.Sexp.Atom "Some 1"; (sexp_of_int [@merlin.hide]) v ]
+             :: tl
+         with
+         | h :: [] -> h
+         | ([] | _ :: _ :: _) as res -> Ppx_sexp_conv_lib.Sexp.List res
+           [@@cold]
+       in
+       ppx_sexp_message () [@nontail]));
+  eg
+    (lazy
+      (let ppx_sexp_message () =
+         match
+           match
+             ( This 1
+             , match Null, [] with
+               | Null, tl -> tl
+               | This v, tl ->
+                 Ppx_sexp_conv_lib.Sexp.List
+                   [ Ppx_sexp_conv_lib.Sexp.Atom "Null"; (sexp_of_int [@merlin.hide]) v ]
+                 :: tl )
+           with
+           | Null, tl -> tl
+           | This v, tl ->
+             Ppx_sexp_conv_lib.Sexp.List
+               [ Ppx_sexp_conv_lib.Sexp.Atom "This 1"; (sexp_of_int [@merlin.hide]) v ]
              :: tl
          with
          | h :: [] -> h
