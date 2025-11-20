@@ -106,9 +106,8 @@ end
 
 let rename_if_ident_or_field_access env expression =
   let longident_to_human_friendly_string longident =
-    (* Make a best-effort attempt to generate a name that roughly
-       corresponds to the original name, to aid human readers of
-       the ppx-generated code.
+    (* Make a best-effort attempt to generate a name that roughly corresponds to the
+       original name, to aid human readers of the ppx-generated code.
     *)
     match longident with
     | Lident ident -> Some ident
@@ -171,8 +170,8 @@ let sexp_of_constraint env ~omit_nil ~stackify ~loc expr ctyp =
     in
     let omit_nil_attr =
       lazy
-        (* this is lazy so using [@omit_nil] inside [%message.omit_nil] is an error (unused
-           attribute) *)
+        (* this is lazy so using [@omit_nil] inside [%message.omit_nil] is an error
+           (unused attribute) *)
         (match Attribute.get omit_nil_attr ctyp with
          | Some () -> true
          | None -> false)
@@ -251,13 +250,11 @@ let sexp_of_labelled_expr env ~omit_nil ~stackify (label, e) =
 
    Effectively:
 
-   [%expr
-     let[@cold] ppx_sexp_message <parameters> = [%e expr] in
-     ppx_sexp_message <arguments> [@nontail]]
+   [%expr let[@cold] ppx_sexp_message <parameters> = [%e expr] in ppx_sexp_message <arguments> [@nontail]]
 
-   - We avoid allocating the closure in many cases by making [ppx_sexp_message]
-     close over as little as possible. Instead, it takes the elements of the
-     [%message ...] as arguments.
+   - We avoid allocating the closure in many cases by making [ppx_sexp_message] close over
+     as little as possible. Instead, it takes the elements of the [%message ...] as
+     arguments.
      + We only avoid closing over identifiers and field accesses (hence
        [rename_if_ident_or_field_access]). That's because the main goal of avoiding the
        closure is to reduce the size of generated code in the caller to improve icache
