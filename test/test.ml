@@ -41,7 +41,11 @@ let%expect_test "[%message]" =
   [%expect {| (forty-two forty-two) |}];
   (pr [@alloc a]) ([%message (sprintf "a") ""] [@alloc a]);
   [%expect {| a |}];
+  (pr [@alloc a]) ([%message (sprintf "a") _] [@alloc a]);
+  [%expect {| a |}];
   (pr [@alloc a]) ([%message "" (sprintf "%s" "a")] [@alloc a]);
+  [%expect {| a |}];
+  (pr [@alloc a]) ([%message _ (sprintf "%s" "a")] [@alloc a]);
   [%expect {| a |}];
   (pr [@alloc a]) ([%message [%here]] [@alloc a]);
   [%expect {| ppx/ppx_sexp_message/test/test.ml:LINE:COL |}];
@@ -53,8 +57,14 @@ let%expect_test "[%message]" =
   [%expect {| ((x 42) (y forty-two)) |}];
   (pr [@alloc a]) ([%message "" ~_:(x : int) (y : string)] [@alloc a]);
   [%expect {| (42 (y forty-two)) |}];
+  (pr [@alloc a]) ([%message _ ~_:(x : int) (y : string)] [@alloc a]);
+  [%expect {| (42 (y forty-two)) |}];
   (* This is a bit weird but consistent. *)
   (pr [@alloc a]) ([%message "foo" ~a:""] [@alloc a]);
+  [%expect {| foo |}];
+  (pr [@alloc a]) ([%message "foo" ~a:_] [@alloc a]);
+  [%expect {| foo |}];
+  (pr [@alloc a]) ([%message "foo" ~_] [@alloc a]);
   [%expect {| foo |}];
   (pr [@alloc a]) ([%message] [@alloc a]);
   [%expect {| () |}];
@@ -109,7 +119,11 @@ let%expect_test "[%lazy_message]" =
   [%expect {| (forty-two forty-two) |}];
   pr_lazy [%lazy_message (sprintf "a") ""];
   [%expect {| a |}];
+  pr_lazy [%lazy_message (sprintf "a") _];
+  [%expect {| a |}];
   pr_lazy [%lazy_message "" (sprintf "%s" "a")];
+  [%expect {| a |}];
+  pr_lazy [%lazy_message _ (sprintf "%s" "a")];
   [%expect {| a |}];
   pr_lazy [%lazy_message [%here]];
   [%expect {| ppx/ppx_sexp_message/test/test.ml:LINE:COL |}];
@@ -121,8 +135,14 @@ let%expect_test "[%lazy_message]" =
   [%expect {| ((x 42) (y forty-two)) |}];
   pr_lazy [%lazy_message "" ~_:(x : int) (y : string)];
   [%expect {| (42 (y forty-two)) |}];
+  pr_lazy [%lazy_message _ ~_:(x : int) (y : string)];
+  [%expect {| (42 (y forty-two)) |}];
   (* This is a bit weird but consistent. *)
   pr_lazy [%lazy_message "foo" ~a:""];
+  [%expect {| foo |}];
+  pr_lazy [%lazy_message "foo" ~a:_];
+  [%expect {| foo |}];
+  pr_lazy [%lazy_message "foo" ~_];
   [%expect {| foo |}];
   pr_lazy [%lazy_message];
   [%expect {| () |}];
@@ -165,15 +185,15 @@ let%expect_test "[%message] works with ppx_template" =
   let open%template struct
     [@@@kind.default k = (bits64, value)]
 
-    type 'a t = T of 'a [@@deriving sexp_of]
-    type 'a not_a_t = Not_t of 'a [@@deriving sexp_of]
+    type ('a : k) t = T of 'a [@@deriving sexp_of]
+    type ('a : k) not_a_t = Not_t of 'a [@@deriving sexp_of]
   end in
   pr [%message "over values" (T 1 : int t) (Not_t 2 : int not_a_t)];
   pr
     [%message
       "over bits64"
-        (T 1L : (Int64_u.t t[@kind bits64]))
-        (Not_t 2L : (Int64_u.t not_a_t[@kind bits64]))];
+        (T #1L : (Int64_u.t t[@kind bits64]))
+        (Not_t #2L : (Int64_u.t not_a_t[@kind bits64]))];
   [%expect
     {|
     ("over values" ("T 1" (T 1)) ("Not_t 2" (Not_t 2)))
