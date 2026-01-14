@@ -209,7 +209,7 @@ let sexp_of_expr env ~omit_nil ~stackify e =
   let e = rewrite_here e in
   let loc = { e.pexp_loc with loc_ghost = true } in
   match Ppxlib_jane.Shim.Expression_desc.of_parsetree ~loc:e.pexp_loc e.pexp_desc with
-  | Pexp_constant (Pconst_string ("", _, _)) -> Absent
+  | Pexp_hole | Pexp_constant (Pconst_string ("", _, _)) -> Absent
   | Pexp_constant const ->
     present_or_omit_nil ~loc ~omit_nil:false (sexp_of_constant ~loc ~stackify const)
   | Pexp_constraint (expr, Some ctyp, _) ->
