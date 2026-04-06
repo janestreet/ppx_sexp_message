@@ -64,7 +64,7 @@ let%expect_test "[%message]" =
   [%expect {| foo |}];
   (pr [@alloc a]) ([%message "foo" ~a:_] [@alloc a]);
   [%expect {| foo |}];
-  (pr [@alloc a]) ([%message "foo" ~_] [@alloc a]);
+  (pr [@alloc a]) ([%message "foo" ~_:_] [@alloc a]);
   [%expect {| foo |}];
   (pr [@alloc a]) ([%message] [@alloc a]);
   [%expect {| () |}];
@@ -142,7 +142,7 @@ let%expect_test "[%lazy_message]" =
   [%expect {| foo |}];
   pr_lazy [%lazy_message "foo" ~a:_];
   [%expect {| foo |}];
-  pr_lazy [%lazy_message "foo" ~_];
+  pr_lazy [%lazy_message "foo" ~_:_];
   [%expect {| foo |}];
   pr_lazy [%lazy_message];
   [%expect {| () |}];
