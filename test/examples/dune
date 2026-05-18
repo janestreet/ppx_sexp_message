@@ -2,4 +2,4 @@
  (name test_ppx_sexp_message_examples)
  (libraries core)
  (preprocess
-  (pps ppx_cold ppx_here ppx_sexp_message ppx_string ppx_template)))
+  (pps ppx_here ppx_sexp_message ppx_string ppx_template)))
