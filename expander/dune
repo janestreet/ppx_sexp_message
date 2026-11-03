@@ -1,7 +1,7 @@
 (library
  (name ppx_sexp_message_expander)
  (public_name ppx_sexp_message.expander)
- (libraries base ppx_here.expander ppx_sexp_conv.expander ppxlib)
+ (libraries ppx_helpers ppx_here.expander ppx_sexp_conv.expander ppxlib)
  (preprocess
   (pps ppxlib.metaquot))
  (ppx_runtime_libraries ppx_sexp_conv.runtime-lib))

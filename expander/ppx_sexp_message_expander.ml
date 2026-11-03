@@ -1,4 +1,4 @@
-open Base
+open Ppx_helpers.Base_lite
 open Ppxlib
 open Ast_builder.Default
 
@@ -218,7 +218,7 @@ let sexp_of_expr env ~omit_nil ~stackify e =
     let e = rename_if_ident_or_field_access env e in
     let sexp_of_string =
       if stackify
-      then [%expr Ppx_sexp_conv_lib.Conv.sexp_of_string__stack]
+      then [%expr Ppx_sexp_conv_lib.Conv.sexp_of_string]
       else [%expr Ppx_sexp_conv_lib.Conv.sexp_of_string]
     in
     present_or_omit_nil ~loc ~omit_nil:false [%expr [%e sexp_of_string] [%e e]]
