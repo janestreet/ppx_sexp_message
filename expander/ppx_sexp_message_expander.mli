@@ -1,4 +1,4 @@
-open Base
+open! Ppx_helpers.Base_lite
 open Ppxlib
 
 val sexp_of_labelled_exprs

@@ -1,5 +1,4 @@
-ppx_sexp_message - Easy construction of s-expressions
-=====================================================
+# ppx_sexp_message - Easy construction of s-expressions
 
 Overview
 --------
